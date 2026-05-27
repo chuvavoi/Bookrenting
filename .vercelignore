@@ -1,0 +1,10 @@
+.env.local
+.env.*.local
+node_modules
+dist
+.git
+.gitignore
+README.md
+RENTAL_FEATURE_REPORT.md
+RENTAL_QUICK_REFERENCE.md
+wrangler.jsonc

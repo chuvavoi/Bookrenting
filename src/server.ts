@@ -1,3 +1,4 @@
+import { createServer } from "http";
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
@@ -66,15 +67,51 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+async function handleRequest(request: Request): Promise<Response> {
+  try {
+    const handler = await getServerEntry();
+    const response = await handler.fetch(request, process.env, {});
+    return await normalizeCatastrophicSsrResponse(response);
+  } catch (error) {
+    console.error(error);
+    return brandedErrorResponse();
+  }
+}
+
+// Cloudflare Workers export
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    try {
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
-      console.error(error);
-      return brandedErrorResponse();
-    }
+    return handleRequest(request);
   },
 };
+
+// Node.js server export (for Vercel and other Node.js platforms)
+if (typeof process !== "undefined" && process.env.NODE_ENV) {
+  const port = parseInt(process.env.PORT || "3000", 10);
+  
+  createServer(async (req, res) => {
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    const request = new Request(url, {
+      method: req.method,
+      headers: new Headers(req.headers as Record<string, string>),
+      body: ["GET", "HEAD"].includes(req.method || "GET") ? undefined : req,
+    });
+
+    try {
+      const response = await handleRequest(request);
+      res.statusCode = response.status;
+      response.headers.forEach((value, key) => {
+        res.setHeader(key, value);
+      });
+      const buffer = await response.arrayBuffer();
+      res.end(Buffer.from(buffer));
+    } catch (error) {
+      console.error(error);
+      res.statusCode = 500;
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.end(renderErrorPage());
+    }
+  }).listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
