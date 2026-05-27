@@ -1,3 +1,4 @@
+import { database } from './db';
 import type { Rental, BookAccessPayload, BookContent, RentalStatus } from './types';
 
 const RENTAL_KEY = 'tramsach.rentals';
@@ -26,10 +27,8 @@ export function isRentalValid(rental: Rental): boolean {
  * Get all rentals from localStorage
  */
 function getAllRentals(): Rental[] {
-  if (typeof window === 'undefined') return [];
-
   try {
-    const data = localStorage.getItem(RENTAL_KEY);
+    const data = database.getItem(RENTAL_KEY);
     if (!data) return [];
     const rentals = JSON.parse(data) as Array<{
       id: string;
@@ -52,11 +51,10 @@ function getAllRentals(): Rental[] {
 }
 
 /**
- * Save rentals to localStorage
+ * Save rentals to the database
  */
 function saveRentals(rentals: Rental[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(RENTAL_KEY, JSON.stringify(rentals));
+  database.setItem(RENTAL_KEY, JSON.stringify(rentals));
 }
 
 /**
